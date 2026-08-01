@@ -29,7 +29,7 @@ func GitLabControls(pc *configuration.PlumberConfig) []ControlEntry {
 		return nil
 	}
 	c := pc.ControlsFor("gitlab")
-	entries := make([]ControlEntry, 0, 14)
+	entries := make([]ControlEntry, 0, 16)
 
 	// Container images must not use forbidden tags
 	cfgForbiddenTags := c.ContainerImageMustNotUseForbiddenTags
@@ -46,6 +46,16 @@ func GitLabControls(pc *configuration.PlumberConfig) []ControlEntry {
 		DisplayName: "Container images must come from authorized sources",
 		ControlName: "containerImageMustComeFromAuthorizedSources",
 		Skipped:     c.ContainerImageMustComeFromAuthorizedSources == nil || !c.ContainerImageMustComeFromAuthorizedSources.IsEnabled(),
+	})
+	entries = append(entries, ControlEntry{
+		DisplayName: "CI/CD components must come from authorized sources",
+		ControlName: "componentMustComeFromAuthorizedSources",
+		Skipped:     c.ComponentMustComeFromAuthorizedSources == nil || !c.ComponentMustComeFromAuthorizedSources.IsEnabled(),
+	})
+	entries = append(entries, ControlEntry{
+		DisplayName: "GitLab Functions must come from authorized sources",
+		ControlName: "functionMustComeFromAuthorizedSources",
+		Skipped:     c.FunctionMustComeFromAuthorizedSources == nil || !c.FunctionMustComeFromAuthorizedSources.IsEnabled(),
 	})
 	entries = append(entries, ControlEntry{
 		DisplayName: "Branch must be protected",
@@ -303,6 +313,12 @@ func DisabledControlNames(c *configuration.ControlsConfig) map[string]bool {
 	}
 	if cfg := c.ContainerImageMustComeFromAuthorizedSources; cfg == nil || !cfg.IsEnabled() {
 		out["containerImageMustComeFromAuthorizedSources"] = true
+	}
+	if cfg := c.ComponentMustComeFromAuthorizedSources; cfg == nil || !cfg.IsEnabled() {
+		out["componentMustComeFromAuthorizedSources"] = true
+	}
+	if cfg := c.FunctionMustComeFromAuthorizedSources; cfg == nil || !cfg.IsEnabled() {
+		out["functionMustComeFromAuthorizedSources"] = true
 	}
 	if cfg := c.BranchMustBeProtected; cfg == nil || !cfg.IsEnabled() {
 		out["branchMustBeProtected"] = true

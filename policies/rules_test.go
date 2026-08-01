@@ -1527,6 +1527,193 @@ func TestIssue101_ImageAuthorizedSources(t *testing.T) {
 	}
 }
 
+// TestIssue414_ComponentAuthorizedSources flags `include: component:`
+// references from an untrusted source. Exercises $VAR / ${VAR}
+// resolution against pipeline.globalVariables (both notations must
+// resolve identically), the own-project trust default, and the
+// abstain-when-config-missing case. Uses a hand-built IR because the
+// test-only parseGitLabCI mini-parser does not extract include:/
+// variables: (see its doc comment).
+func TestIssue414_ComponentAuthorizedSources(t *testing.T) {
+	engine := opaengine.New()
+	if err := engine.LoadFromFS(policies.FS); err != nil {
+		t.Fatalf("load embedded policies: %v", err)
+	}
+	cfg := map[string]any{
+		"componentAuthorizedSources": map[string]any{
+			"trustedUrls": []string{"$CI_SERVER_FQDN/$CI_PROJECT_PATH/*"},
+		},
+	}
+	globals := map[string]string{
+		"CI_SERVER_FQDN":  "gitlab.example.com",
+		"CI_PROJECT_PATH": "my-group/my-project",
+	}
+
+	cases := []struct {
+		name     string
+		include  ir.Include
+		expected bool
+	}{
+		{
+			"own_project_dollar_notation",
+			ir.Include{Kind: "component", Source: "gitlab.example.com/my-group/my-project/comp@1.0"},
+			false,
+		},
+		{
+			"own_project_pattern_brace_notation",
+			ir.Include{Kind: "component", Source: "${CI_SERVER_FQDN}/${CI_PROJECT_PATH}/comp@1.0"},
+			false,
+		},
+		{
+			"external_namespace",
+			ir.Include{Kind: "component", Source: "gitlab.example.com/attacker/evil-comp@1.0"},
+			true,
+		},
+		{
+			"external_host",
+			ir.Include{Kind: "component", Source: "gitlab.com/some-org/some-comp@1.0"},
+			true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			pipeline := &ir.NormalizedPipeline{
+				Provider:        ir.ProviderGitLab,
+				Includes:        []ir.Include{tc.include},
+				GlobalVariables: globals,
+			}
+			findings, err := engine.Evaluate(context.Background(), pipeline, cfg)
+			if err != nil {
+				t.Fatalf("evaluate: %v", err)
+			}
+			found := false
+			for _, f := range findings {
+				if f.Code == "ISSUE-414" {
+					found = true
+				}
+			}
+			if found != tc.expected {
+				t.Fatalf("%s: expected violation=%v, got %v (findings=%+v)", tc.name, tc.expected, found, findings)
+			}
+		})
+	}
+
+	t.Run("unresolved_var_still_flagged", func(t *testing.T) {
+		// $CI_PROJECT_PATH is not in globalVariables here, so the pattern
+		// resolves to "gitlab.example.com/$CI_PROJECT_PATH/*" — the
+		// literal "$CI_PROJECT_PATH" segment cannot glob-match the
+		// attacker's real namespace, so the ref is correctly flagged
+		// rather than incidentally trusted on missing data.
+		pipeline := &ir.NormalizedPipeline{
+			Provider: ir.ProviderGitLab,
+			Includes: []ir.Include{{Kind: "component", Source: "gitlab.example.com/attacker/evil@1.0"}},
+			GlobalVariables: map[string]string{
+				"CI_SERVER_FQDN": "gitlab.example.com",
+			},
+		}
+		findings, err := engine.Evaluate(context.Background(), pipeline, cfg)
+		if err != nil {
+			t.Fatalf("evaluate: %v", err)
+		}
+		found := false
+		for _, f := range findings {
+			if f.Code == "ISSUE-414" {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("expected violation when a referenced var cannot be resolved")
+		}
+	})
+
+	t.Run("abstains_without_config", func(t *testing.T) {
+		pipeline := &ir.NormalizedPipeline{
+			Provider:        ir.ProviderGitLab,
+			Includes:        []ir.Include{{Kind: "component", Source: "gitlab.com/attacker/evil@1.0"}},
+			GlobalVariables: globals,
+		}
+		findings, err := engine.Evaluate(context.Background(), pipeline, nil)
+		if err != nil {
+			t.Fatalf("evaluate: %v", err)
+		}
+		for _, f := range findings {
+			if f.Code == "ISSUE-414" {
+				t.Fatalf("expected no ISSUE-414 findings without config, got %+v", f)
+			}
+		}
+	})
+}
+
+// TestIssue415_FunctionAuthorizedSources flags `run:` block function
+// references (func:/step:) from an untrusted source. Exercises the
+// own-project trust default via CI_TEMPLATE_REGISTRY_HOST, the local-
+// ref exemption, and the abstain-when-config-missing case.
+func TestIssue415_FunctionAuthorizedSources(t *testing.T) {
+	engine := opaengine.New()
+	if err := engine.LoadFromFS(policies.FS); err != nil {
+		t.Fatalf("load embedded policies: %v", err)
+	}
+	cfg := map[string]any{
+		"functionAuthorizedSources": map[string]any{
+			"trustedUrls": []string{"$CI_TEMPLATE_REGISTRY_HOST/$CI_PROJECT_PATH/*"},
+		},
+	}
+	globals := map[string]string{
+		"CI_TEMPLATE_REGISTRY_HOST": "registry.gitlab.com",
+		"CI_PROJECT_PATH":           "my-group/my-project",
+	}
+
+	cases := []struct {
+		name     string
+		function ir.FunctionRef
+		expected bool
+	}{
+		{"own_project", ir.FunctionRef{Uses: "registry.gitlab.com/my-group/my-project/step:1"}, false},
+		{"local_relative", ir.FunctionRef{Uses: "./local-step"}, false},
+		{"local_absolute", ir.FunctionRef{Uses: "/opt/gitlab-functions/my-function"}, false},
+		{"external_namespace", ir.FunctionRef{Uses: "registry.gitlab.com/attacker/evil-step:1"}, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			pipeline := &ir.NormalizedPipeline{
+				Provider:        ir.ProviderGitLab,
+				Jobs:            []ir.Job{{Name: "build", Functions: []ir.FunctionRef{tc.function}}},
+				GlobalVariables: globals,
+			}
+			findings, err := engine.Evaluate(context.Background(), pipeline, cfg)
+			if err != nil {
+				t.Fatalf("evaluate: %v", err)
+			}
+			found := false
+			for _, f := range findings {
+				if f.Code == "ISSUE-415" {
+					found = true
+				}
+			}
+			if found != tc.expected {
+				t.Fatalf("%s: expected violation=%v, got %v (findings=%+v)", tc.name, tc.expected, found, findings)
+			}
+		})
+	}
+
+	t.Run("abstains_without_config", func(t *testing.T) {
+		pipeline := &ir.NormalizedPipeline{
+			Provider:        ir.ProviderGitLab,
+			Jobs:            []ir.Job{{Name: "build", Functions: []ir.FunctionRef{{Uses: "registry.gitlab.com/attacker/evil:1"}}}},
+			GlobalVariables: globals,
+		}
+		findings, err := engine.Evaluate(context.Background(), pipeline, nil)
+		if err != nil {
+			t.Fatalf("evaluate: %v", err)
+		}
+		for _, f := range findings {
+			if f.Code == "ISSUE-415" {
+				t.Fatalf("expected no ISSUE-415 findings without config, got %+v", f)
+			}
+		}
+	})
+}
+
 // TestIssue410_SecurityJobsWeakened flags SAST-like jobs with
 // allow_failure: true or when: manual.
 func TestIssue410_SecurityJobsWeakened(t *testing.T) {

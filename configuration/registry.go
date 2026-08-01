@@ -46,6 +46,11 @@ var controlsMeta = map[string]ControlMeta{
 	"pipelineMustNotUseUnsafeVariableExpansion":   {Providers: []string{ProviderGitLab, ProviderGitHub}},
 	"securityJobsMustNotBeWeakened":               {Providers: []string{ProviderGitLab, ProviderGitHub}},
 
+	// GitLab-only. CI/CD Components and GitLab Functions have no
+	// GitHub Actions equivalent.
+	"componentMustComeFromAuthorizedSources": {Providers: []string{ProviderGitLab}},
+	"functionMustComeFromAuthorizedSources":  {Providers: []string{ProviderGitLab}},
+
 	// GitHub-only.
 	"actionPinCommentsMustMatchSha":                       {Providers: []string{ProviderGitHub}},
 	"actionPinsMustNotBeStale":                            {Providers: []string{ProviderGitHub}},

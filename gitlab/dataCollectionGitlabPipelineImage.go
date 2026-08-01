@@ -29,6 +29,11 @@ type GitlabPipelineImageMetrics struct {
 	IssueUntrustedDismissed    uint `json:"issueUntrustedDismissed"`
 	IssueForbiddenTag          uint `json:"issueForbiddenTag"`
 	IssueForbiddenTagDismissed uint `json:"issueForbiddenTagDismissed"`
+	// FunctionTotal is the number of GitLab Function references
+	// (`run:` block `func:`/`step:` items) found across every job.
+	// Consumed by the functionMustComeFromAuthorizedSources terminal
+	// stat block (ISSUE-415).
+	FunctionTotal uint `json:"functionTotal"`
 }
 
 type GitlabPipelineImageData struct {
@@ -46,6 +51,11 @@ type GitlabPipelineImageData struct {
 
 	// Images found in the pipeline
 	Images []GitlabPipelineImageInfo `json:"images"`
+
+	// Functions found in the pipeline's `run:` blocks
+	// (componentMustComeFromAuthorizedSources' sibling control,
+	// functionMustComeFromAuthorizedSources — ISSUE-415).
+	Functions []GitlabPipelineFunctionInfo `json:"functions"`
 }
 
 type GitlabPipelineImageInfo struct {
@@ -54,6 +64,14 @@ type GitlabPipelineImageInfo struct {
 	Tag      string `json:"tag"`
 	Registry string `json:"registry"`
 	Job      string `json:"job"`
+}
+
+// GitlabPipelineFunctionInfo is a single GitLab Function reference found in
+// a job's `run:` block. Link is the raw, unresolved ref exactly as
+// authored — `$VAR`/`${VAR}` resolution happens in Rego, not here.
+type GitlabPipelineFunctionInfo struct {
+	Link string `json:"link"`
+	Job  string `json:"job"`
 }
 
 ///////////////////////////////
@@ -752,6 +770,15 @@ func (dc *GitlabPipelineImageDataCollection) Run(project *ProjectInfo, token str
 			return data, metrics, err
 		}
 
+		// Collect GitLab Function references from the job's `run:` block
+		// (componentMustComeFromAuthorizedSources' sibling,
+		// functionMustComeFromAuthorizedSources — ISSUE-415). Independent
+		// of the image extraction below, so a job with `run:` steps but
+		// no image is still covered.
+		for _, ref := range extractGitLabFunctionRefs(job.Run) {
+			data.Functions = append(data.Functions, GitlabPipelineFunctionInfo{Link: ref, Job: name})
+		}
+
 		//  Get job variables
 		jobVars, err := ParseJobVariables(job)
 		if err != nil {
@@ -800,6 +827,7 @@ func (dc *GitlabPipelineImageDataCollection) Run(project *ProjectInfo, token str
 
 	// Compute metrics
 	metrics.Total = uint(len(data.Images))
+	metrics.FunctionTotal = uint(len(data.Functions))
 
 	// Return the populated analysis data
 	return data, metrics, nil

@@ -90,6 +90,10 @@ func buildLegacyResult(e control.ControlEntry, result *control.AnalysisResult, p
 		return "imageForbiddenTagsResult", buildImageForbiddenTagsBlock(common, result, pc, findings)
 	case "containerImageMustComeFromAuthorizedSources":
 		return "imageAuthorizedSourcesResult", buildImageAuthorizedSourcesBlock(common, result, findings)
+	case "componentMustComeFromAuthorizedSources":
+		return "componentAuthorizedSourcesResult", buildComponentAuthorizedSourcesBlock(common, result, findings)
+	case "functionMustComeFromAuthorizedSources":
+		return "functionAuthorizedSourcesResult", buildFunctionAuthorizedSourcesBlock(common, result, findings)
 	case "branchMustBeProtected":
 		return "branchProtectionResult", buildBranchProtectionBlock(common, result, pc, findings)
 	case "pipelineMustNotIncludeHardcodedJobs":
@@ -417,6 +421,58 @@ func buildImageAuthorizedSourcesBlock(c legacyCommon, result *control.AnalysisRe
 	total := 0
 	if result.PipelineImageMetrics != nil {
 		total = int(result.PipelineImageMetrics.Total)
+	}
+	unauthorized := len(findings)
+	authorized := total - unauthorized
+	if authorized < 0 {
+		authorized = 0
+	}
+	return map[string]any{
+		"issues": projectFindings(findings, "job"),
+		"metrics": map[string]any{
+			"total":        total,
+			"authorized":   authorized,
+			"unauthorized": unauthorized,
+			"ciInvalid":    0,
+			"ciMissing":    0,
+		},
+		"version":   "0.1.0",
+		"ciValid":   c.CiValid,
+		"ciMissing": c.CiMissing,
+		"skipped":   c.Skipped,
+	}
+}
+
+func buildComponentAuthorizedSourcesBlock(c legacyCommon, result *control.AnalysisResult, findings []opaengine.Finding) map[string]any {
+	total := 0
+	if result.PipelineOriginMetrics != nil {
+		total = int(result.PipelineOriginMetrics.OriginComponent)
+	}
+	unauthorized := len(findings)
+	authorized := total - unauthorized
+	if authorized < 0 {
+		authorized = 0
+	}
+	return map[string]any{
+		"issues": projectFindings(findings, "job"),
+		"metrics": map[string]any{
+			"total":        total,
+			"authorized":   authorized,
+			"unauthorized": unauthorized,
+			"ciInvalid":    0,
+			"ciMissing":    0,
+		},
+		"version":   "0.1.0",
+		"ciValid":   c.CiValid,
+		"ciMissing": c.CiMissing,
+		"skipped":   c.Skipped,
+	}
+}
+
+func buildFunctionAuthorizedSourcesBlock(c legacyCommon, result *control.AnalysisResult, findings []opaengine.Finding) map[string]any {
+	total := 0
+	if result.PipelineFunctionMetrics != nil {
+		total = int(result.PipelineFunctionMetrics.Total)
 	}
 	unauthorized := len(findings)
 	authorized := total - unauthorized

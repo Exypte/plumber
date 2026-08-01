@@ -65,6 +65,8 @@ func TestWizardDefaultsSourcedFromEmbeddedDefault(t *testing.T) {
 	// with an empty pattern list that matches nothing).
 	lists := map[string][]string{
 		"defaultTrustedURLs":                            defaultTrustedURLs(),
+		"defaultComponentTrustedURLs":                   defaultComponentTrustedURLs(),
+		"defaultFunctionTrustedURLs":                    defaultFunctionTrustedURLs(),
 		"defaultTrustedGithubActions":                   defaultTrustedGithubActions(),
 		"defaultSecurityJobPatterns":                    defaultSecurityJobPatterns(),
 		"defaultGitHubSecurityJobPatterns":              defaultGitHubSecurityJobPatterns(),
@@ -142,6 +144,51 @@ func TestWizardScratchAuthorizedActionsEmpty(t *testing.T) {
 	}
 	if len(got.TrustedGithubActions) != 0 || got.MinimumStars != 0 {
 		t.Errorf("expected empty allowlist and no star floor, got list=%d stars=%d", len(got.TrustedGithubActions), got.MinimumStars)
+	}
+}
+
+// When compAuthorizedComponents / compAuthorizedFunctions are selected with
+// no explicit trustedUrls text, the wizard must fall back to the embedded
+// default's trustedUrls (ISSUE-414 / ISSUE-415) rather than an empty list.
+func TestWizardAuthorizedComponentAndFunctionDefaults(t *testing.T) {
+	var embedded configuration.PlumberConfig
+	if err := yaml.Unmarshal(defaultconfig.Get(), &embedded); err != nil {
+		t.Fatalf("unmarshal embedded default: %v", err)
+	}
+	if embedded.GitLab == nil {
+		t.Fatal("embedded default has no gitlab section")
+	}
+	wantComponent := embedded.GitLab.Controls.ComponentMustComeFromAuthorizedSources
+	wantFunction := embedded.GitLab.Controls.FunctionMustComeFromAuthorizedSources
+	if wantComponent == nil || wantFunction == nil {
+		t.Fatal("embedded default is missing componentMustComeFromAuthorizedSources or functionMustComeFromAuthorizedSources")
+	}
+
+	st := &initWizardState{
+		Providers:          []string{"gitlab"},
+		Categories:         []string{catComposition},
+		CompositionChoices: []string{compAuthorizedComponents, compAuthorizedFunctions},
+	}
+	cfg := st.toPlumberConfig()
+	gotComponent := cfg.GitLab.Controls.ComponentMustComeFromAuthorizedSources
+	gotFunction := cfg.GitLab.Controls.FunctionMustComeFromAuthorizedSources
+	if gotComponent == nil {
+		t.Fatal("wizard did not emit componentMustComeFromAuthorizedSources")
+	}
+	if gotFunction == nil {
+		t.Fatal("wizard did not emit functionMustComeFromAuthorizedSources")
+	}
+	if !gotComponent.IsEnabled() {
+		t.Error("componentMustComeFromAuthorizedSources should be enabled")
+	}
+	if !gotFunction.IsEnabled() {
+		t.Error("functionMustComeFromAuthorizedSources should be enabled")
+	}
+	if !reflect.DeepEqual(wantComponent.TrustedUrls, gotComponent.TrustedUrls) {
+		t.Errorf("componentMustComeFromAuthorizedSources.trustedUrls drift: want %v got %v", wantComponent.TrustedUrls, gotComponent.TrustedUrls)
+	}
+	if !reflect.DeepEqual(wantFunction.TrustedUrls, gotFunction.TrustedUrls) {
+		t.Errorf("functionMustComeFromAuthorizedSources.trustedUrls drift: want %v got %v", wantFunction.TrustedUrls, gotFunction.TrustedUrls)
 	}
 }
 

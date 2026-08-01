@@ -41,10 +41,16 @@ type NormalizedPipeline struct {
 
 	// GlobalVariables are pipeline-level variables declared at the top
 	// of the source (e.g. `variables:` block at the root of
-	// .gitlab-ci.yml). Includes the merge with upstream component /
-	// template defaults — convenient for "what will actually be set at
-	// runtime" checks (CI_DEBUG_TRACE leaking secrets, insecure
-	// DOCKER_TLS_CERTDIR …).
+	// .gitlab-ci.yml), merged with upstream component / template
+	// defaults — convenient for "what will actually be set at runtime"
+	// checks (CI_DEBUG_TRACE leaking secrets, insecure
+	// DOCKER_TLS_CERTDIR …). For GitLab, also carries every predefined
+	// variable the collector can resolve statically (CI_SERVER_FQDN,
+	// CI_PROJECT_PATH, CI_TEMPLATE_REGISTRY_HOST, …) plus the project's
+	// group/instance/project-level CI/CD variables fetched via the API
+	// — so Rego rules can resolve `$VAR`/`${VAR}` references found
+	// inside a ref (e.g. componentAuthorizedSources /
+	// functionAuthorizedSources) without a separate Go-side pass.
 	GlobalVariables map[string]string `json:"globalVariables,omitempty"`
 
 	// LocalGlobalVariables are the pipeline-level variables the user
@@ -223,6 +229,24 @@ type Job struct {
 	// `environment: production` shorthand and the long form — the
 	// collector keeps only the name. Empty when no environment is set.
 	Environment string `json:"environment,omitempty"`
+
+	// Functions lists every GitLab Function (formerly "CI/CD Step")
+	// referenced by the job's `run:` block, via either the current
+	// `func:` key or the deprecated-but-still-supported `step:` key.
+	// Empty for GitHub jobs and for GitLab jobs whose `run:` items are
+	// all plain `script:` steps. Populated by the GitLab collector from
+	// `origin.MergedConf` (gitlab/dataCollectionGitlabPipelineImage.go).
+	Functions []FunctionRef `json:"functions,omitempty"`
+}
+
+// FunctionRef is a single reference to a GitLab Function from a job's
+// `run:` block. Uses carries the raw, unresolved ref exactly as
+// authored (e.g. `$CI_TEMPLATE_REGISTRY_HOST/group/proj/step:1` or a
+// local `./path/to/step`) — `$VAR`/`${VAR}` resolution against
+// NormalizedPipeline.GlobalVariables happens in the consuming Rego
+// rule, not at collection time.
+type FunctionRef struct {
+	Uses string `json:"uses"`
 }
 
 // Action is a single invocation of a reusable third-party action.

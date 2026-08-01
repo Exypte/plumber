@@ -147,6 +147,38 @@ gitlab:
         - gcr.io/go-containerregistry/* # google/go-containerregistry (crane, gcrane)
         - gcr.io/google.com/cloudsdktool/* # Google Cloud SDK (gcloud) official
     # ===========================================
+    # CI/CD components must come from authorized sources
+    # ===========================================
+    # Detects `include: component:` references pulled from a source not
+    # listed below. $VAR / ${VAR} references are resolved against the
+    # scanned pipeline's variables before comparison, so the default
+    # below implicitly trusts this project's own namespace.
+    #
+    # Best practice: keep components scoped to your own project/group
+    componentMustComeFromAuthorizedSources:
+      # Set to false to disable this control
+      enabled: true
+      # Trusted component source URLs and patterns (supports wildcards)
+      trustedUrls:
+        - $CI_SERVER_FQDN/$CI_PROJECT_PATH/*
+        - ${CI_SERVER_FQDN}/${CI_PROJECT_PATH}/*
+    # ===========================================
+    # GitLab Functions must come from authorized sources
+    # ===========================================
+    # Detects `run:` block function references (`func:` / deprecated
+    # `step:`) pulled from a source not listed below. $VAR / ${VAR}
+    # references are resolved the same way as
+    # componentMustComeFromAuthorizedSources above.
+    #
+    # Best practice: keep functions scoped to your own project/group
+    functionMustComeFromAuthorizedSources:
+      # Set to false to disable this control
+      enabled: true
+      # Trusted function source URLs and patterns (supports wildcards)
+      trustedUrls:
+        - $CI_TEMPLATE_REGISTRY_HOST/$CI_PROJECT_PATH/*
+        - ${CI_TEMPLATE_REGISTRY_HOST}/${CI_PROJECT_PATH}/*
+    # ===========================================
     # Branch must be protected
     # ===========================================
     # Checks that repository branches have proper protection settings.

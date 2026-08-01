@@ -31,14 +31,16 @@ const (
 	catVariables   = "Variable security (debug trace, unsafe expansion)"
 
 	// GitLab-applicable composition checks (existing).
-	compHardcoded    = "Disallow hardcoded jobs (use includes/components)"
-	compUpToDate     = "Require catalog includes to be up to date"
-	compForbidden    = "Forbid mutable include refs (latest, main, HEAD, …)"
-	compRefCollision = "Flag include refs that resolve to both a tag and a branch"
-	compSecurity     = "Detect weakened security scanning jobs"
-	compScripts      = "Detect unverified script execution (curl|bash, base64|bash, |sh, …)"
-	compJobVars      = "Detect sensitive variables overridden in pipeline YAML"
-	compDinD         = "Detect Docker-in-Docker (dind) usage"
+	compHardcoded            = "Disallow hardcoded jobs (use includes/components)"
+	compUpToDate             = "Require catalog includes to be up to date"
+	compForbidden            = "Forbid mutable include refs (latest, main, HEAD, …)"
+	compRefCollision         = "Flag include refs that resolve to both a tag and a branch"
+	compSecurity             = "Detect weakened security scanning jobs"
+	compScripts              = "Detect unverified script execution (curl|bash, base64|bash, |sh, …)"
+	compJobVars              = "Detect sensitive variables overridden in pipeline YAML"
+	compDinD                 = "Detect Docker-in-Docker (dind) usage"
+	compAuthorizedComponents = "Restrict CI/CD components to authorized sources"
+	compAuthorizedFunctions  = "Restrict GitLab Functions (run: block) to authorized sources"
 
 	// GitHub-applicable composition checks (new). The cross-provider ones
 	// (security jobs, DinD) reuse compSecurity / compDinD above.
@@ -181,6 +183,12 @@ type initWizardState struct {
 
 	// pipelineMustNotOverrideJobVariables (when compJobVars selected)
 	JobOverrideVariablesMultiline string
+
+	// componentMustComeFromAuthorizedSources (when compAuthorizedComponents selected)
+	ComponentTrustedURLsText string
+
+	// functionMustComeFromAuthorizedSources (when compAuthorizedFunctions selected)
+	FunctionTrustedURLsText string
 
 	// pipelineMustNotUseDockerInDocker (when compDinD selected)
 	DinDDetectInsecureDaemon bool
@@ -390,6 +398,26 @@ func (st *initWizardState) askCompositionFirstHalf() error {
 			Message: "Script host URL patterns to trust (one per line)",
 			Help:    "Leave empty to flag every remote script. Example: https://internal.example.com/*",
 		}, &st.ScriptTrustedURLsMultiline); err != nil {
+			return err
+		}
+	}
+	if compSelected(st, compAuthorizedComponents) {
+		fmt.Fprintf(os.Stderr, "\n  › Authorized component sources\n")
+		if err := survey.AskOne(&survey.Multiline{
+			Message: "Trusted CI/CD component source URL patterns (one per line)",
+			Help:    "Supports wildcards and $VAR/${VAR} references resolved against the pipeline's variables, e.g. $CI_SERVER_FQDN/$CI_PROJECT_PATH/*.",
+			Default: strings.Join(defaultComponentTrustedURLs(), "\n"),
+		}, &st.ComponentTrustedURLsText); err != nil {
+			return err
+		}
+	}
+	if compSelected(st, compAuthorizedFunctions) {
+		fmt.Fprintf(os.Stderr, "\n  › Authorized function sources\n")
+		if err := survey.AskOne(&survey.Multiline{
+			Message: "Trusted GitLab Function source URL patterns (one per line)",
+			Help:    "Supports wildcards and $VAR/${VAR} references resolved against the pipeline's variables, e.g. $CI_TEMPLATE_REGISTRY_HOST/$CI_PROJECT_PATH/*.",
+			Default: strings.Join(defaultFunctionTrustedURLs(), "\n"),
+		}, &st.FunctionTrustedURLsText); err != nil {
 			return err
 		}
 	}
@@ -723,7 +751,7 @@ func compositionOptionsForProviders(providers []string) []string {
 	}
 	out = append(out, compSecurity, compDinD)
 	if hasGitLab {
-		out = append(out, compScripts, compJobVars)
+		out = append(out, compScripts, compJobVars, compAuthorizedComponents, compAuthorizedFunctions)
 	}
 	if hasGitHub {
 		out = append(out,
@@ -879,6 +907,24 @@ func runAnalyzeAuthHint(providers []string) string {
 // TestDefaultTrustedURLsMatchEmbeddedDefault.
 func defaultTrustedURLs() []string {
 	if c := defaultGitLabControls().ContainerImageMustComeFromAuthorizedSources; c != nil {
+		return c.TrustedUrls
+	}
+	return nil
+}
+
+// defaultComponentTrustedURLs mirrors the .plumber.yaml default for
+// gitlab.controls.componentMustComeFromAuthorizedSources.trustedUrls.
+func defaultComponentTrustedURLs() []string {
+	if c := defaultGitLabControls().ComponentMustComeFromAuthorizedSources; c != nil {
+		return c.TrustedUrls
+	}
+	return nil
+}
+
+// defaultFunctionTrustedURLs mirrors the .plumber.yaml default for
+// gitlab.controls.functionMustComeFromAuthorizedSources.trustedUrls.
+func defaultFunctionTrustedURLs() []string {
+	if c := defaultGitLabControls().FunctionMustComeFromAuthorizedSources; c != nil {
 		return c.TrustedUrls
 	}
 	return nil
@@ -1117,6 +1163,28 @@ func (st *initWizardState) toPlumberConfig() *configuration.PlumberConfig {
 				}
 			}
 
+			if compSelected(st, compAuthorizedComponents) {
+				urls := parseLinesInit(st.ComponentTrustedURLsText)
+				if len(urls) == 0 {
+					urls = defaultComponentTrustedURLs()
+				}
+				gl.Controls.ComponentMustComeFromAuthorizedSources = &configuration.ComponentAuthorizedSourcesControlConfig{
+					Enabled:     boolPtrInit(true),
+					TrustedUrls: urls,
+				}
+			}
+
+			if compSelected(st, compAuthorizedFunctions) {
+				urls := parseLinesInit(st.FunctionTrustedURLsText)
+				if len(urls) == 0 {
+					urls = defaultFunctionTrustedURLs()
+				}
+				gl.Controls.FunctionMustComeFromAuthorizedSources = &configuration.FunctionAuthorizedSourcesControlConfig{
+					Enabled:     boolPtrInit(true),
+					TrustedUrls: urls,
+				}
+			}
+
 			if e := strings.TrimSpace(st.RequiredComponentsExpr); e != "" {
 				gl.Controls.PipelineMustIncludeComponent = &configuration.RequiredComponentsControlConfig{
 					Enabled:  boolPtrInit(true),
@@ -1322,9 +1390,12 @@ func starterPlumberConfig() *configuration.PlumberConfig {
 		AuthorizedActionsUsePlumberList: true,
 		CompositionChoices: []string{
 			compHardcoded, compUpToDate, compForbidden, compRefCollision, compSecurity, compScripts, compJobVars, compDinD,
+			compAuthorizedComponents, compAuthorizedFunctions,
 			compActionPin, compAuthorizedActions, compDangerousTriggers, compPRTargetHead, compDeclarePermissions, compReusableSecrets, compOverprovSecrets, compTemplateInjection,
 			compEnvInjection, compWriteAllPerms, compRefConfusion, compArchivedActions, compKnownCVEs, compImpostorCommit, compMutableRemoteExec, compCachePoisoning, compDebugTraceGitHub,
 		},
+		ComponentTrustedURLsText:               strings.Join(defaultComponentTrustedURLs(), "\n"),
+		FunctionTrustedURLsText:                strings.Join(defaultFunctionTrustedURLs(), "\n"),
 		ActionPinTrustedOwnersMultiline:        strings.Join(defaultGitHubTrustedActionOwners(), "\n"),
 		SecurityJobPatternsGitHubMultiline:     strings.Join(defaultGitHubSecurityJobPatterns(), "\n"),
 		ForbiddenVersionsMultiline:             strings.Join(defaultForbiddenVersions(), "\n"),

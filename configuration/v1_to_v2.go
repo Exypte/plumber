@@ -70,6 +70,8 @@ func convertV1ToV2(pc *PlumberConfig) []string {
 func controlsConfigIsZero(c ControlsConfig) bool {
 	return c.ContainerImageMustNotUseForbiddenTags == nil &&
 		c.ContainerImageMustComeFromAuthorizedSources == nil &&
+		c.ComponentMustComeFromAuthorizedSources == nil &&
+		c.FunctionMustComeFromAuthorizedSources == nil &&
 		c.BranchMustBeProtected == nil &&
 		c.PipelineMustNotIncludeHardcodedJobs == nil &&
 		c.IncludesMustBeUpToDate == nil &&
@@ -95,6 +97,8 @@ func controlsConfigIsZero(c ControlsConfig) bool {
 func controlsConfigEqual(a, b ControlsConfig) bool {
 	return a.ContainerImageMustNotUseForbiddenTags == b.ContainerImageMustNotUseForbiddenTags &&
 		a.ContainerImageMustComeFromAuthorizedSources == b.ContainerImageMustComeFromAuthorizedSources &&
+		a.ComponentMustComeFromAuthorizedSources == b.ComponentMustComeFromAuthorizedSources &&
+		a.FunctionMustComeFromAuthorizedSources == b.FunctionMustComeFromAuthorizedSources &&
 		a.BranchMustBeProtected == b.BranchMustBeProtected &&
 		a.PipelineMustNotIncludeHardcodedJobs == b.PipelineMustNotIncludeHardcodedJobs &&
 		a.IncludesMustBeUpToDate == b.IncludesMustBeUpToDate &&

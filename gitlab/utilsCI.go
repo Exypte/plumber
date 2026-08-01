@@ -547,6 +547,34 @@ func ParseGitlabCIJob(jobContent interface{}) (*GitlabJob, error) {
 	return &job, nil
 }
 
+// extractGitLabFunctionRefs walks a job's `run:` block (GitLab Functions /
+// CI/CD Steps) and returns the raw, unresolved reference string of every
+// step item that invokes a function — `func:` (current keyword) or `step:`
+// (deprecated but still supported, full backward compat per GitLab). Plain
+// `script:` step items (no func/step key) are not function references and
+// are skipped. Returns nil when run is not a list or has no function steps.
+func extractGitLabFunctionRefs(run interface{}) []string {
+	items, ok := run.([]interface{})
+	if !ok {
+		return nil
+	}
+	var refs []string
+	for _, item := range items {
+		m, ok := item.(map[interface{}]interface{})
+		if !ok {
+			continue
+		}
+		if ref, ok := m["func"].(string); ok && ref != "" {
+			refs = append(refs, ref)
+			continue
+		}
+		if ref, ok := m["step"].(string); ok && ref != "" {
+			refs = append(refs, ref)
+		}
+	}
+	return refs
+}
+
 // ReplaceVariable replaces variables in the input string recursively up to 5 levels
 func ReplaceVariable(input string, project, group, instance, job, defaultJob, predefined map[string]string) string {
 	regex := `(\$[a-zA-Z_][a-zA-Z0-9_]*|\${[a-zA-Z_][a-zA-Z0-9_]*}|%[a-zA-Z_][a-zA-Z0-9_]*%)`

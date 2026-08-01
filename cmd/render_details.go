@@ -669,6 +669,36 @@ func buildGitLabControlStats(controlName string, result *control.AnalysisResult,
 			{Label: "Authorized", Value: fmt.Sprintf("%d", authorized)},
 			{Label: "Unauthorized", Value: fmt.Sprintf("%d", unauthorized)},
 		}
+	case "componentMustComeFromAuthorizedSources":
+		total := 0
+		if result.PipelineOriginMetrics != nil {
+			total = int(result.PipelineOriginMetrics.OriginComponent)
+		}
+		unauthorized := findingsCount
+		authorized := total - unauthorized
+		if authorized < 0 {
+			authorized = 0
+		}
+		return []statLine{
+			{Label: "Total Components", Value: fmt.Sprintf("%d", total)},
+			{Label: "Authorized", Value: fmt.Sprintf("%d", authorized)},
+			{Label: "Unauthorized", Value: fmt.Sprintf("%d", unauthorized)},
+		}
+	case "functionMustComeFromAuthorizedSources":
+		total := 0
+		if result.PipelineFunctionMetrics != nil {
+			total = int(result.PipelineFunctionMetrics.Total)
+		}
+		unauthorized := findingsCount
+		authorized := total - unauthorized
+		if authorized < 0 {
+			authorized = 0
+		}
+		return []statLine{
+			{Label: "Total Functions", Value: fmt.Sprintf("%d", total)},
+			{Label: "Authorized", Value: fmt.Sprintf("%d", authorized)},
+			{Label: "Unauthorized", Value: fmt.Sprintf("%d", unauthorized)},
+		}
 	case "pipelineMustNotIncludeHardcodedJobs":
 		total := uint(0)
 		hardcoded := uint(0)

@@ -209,6 +209,44 @@ gitlab:
         - redhat/* # = docker.io/redhat/* (bare ref, unresolved-$VAR case)
         - opensuse/* # = docker.io/opensuse/* (bare ref, unresolved-$VAR case)
     # ===========================================
+    # CI/CD components must come from authorized sources
+    # ===========================================
+    # Detects `include: component:` references pulled from a source not
+    # listed below. Components run arbitrary code with the job's full
+    # context (variables, secrets, CI_JOB_TOKEN) — the GitLab analogue of
+    # a GitHub Actions "pwn request". $VAR / ${VAR} references in both the
+    # component's source and each pattern below are resolved against the
+    # scanned pipeline's variables (predefined + CI/CD Settings) before
+    # comparison, so the default below implicitly trusts the scanned
+    # project's own namespace.
+    #
+    # Best practice: keep components scoped to your own project/group
+    componentMustComeFromAuthorizedSources:
+      # Set to false to disable this control
+      enabled: true
+      # Trusted component source URLs and patterns (supports wildcards)
+      trustedUrls:
+        - $CI_SERVER_FQDN/$CI_PROJECT_PATH/*
+        - ${CI_SERVER_FQDN}/${CI_PROJECT_PATH}/*
+    # ===========================================
+    # GitLab Functions must come from authorized sources
+    # ===========================================
+    # Detects `run:` block function references (the `func:` keyword, or
+    # the deprecated-but-still-supported `step:` keyword) pulled from a
+    # source not listed below. Functions run arbitrary code with the
+    # job's full context, the same supply-chain exposure as CI/CD
+    # components. $VAR / ${VAR} references are resolved the same way as
+    # componentMustComeFromAuthorizedSources above.
+    #
+    # Best practice: keep functions scoped to your own project/group
+    functionMustComeFromAuthorizedSources:
+      # Set to false to disable this control
+      enabled: true
+      # Trusted function source URLs and patterns (supports wildcards)
+      trustedUrls:
+        - $CI_TEMPLATE_REGISTRY_HOST/$CI_PROJECT_PATH/*
+        - ${CI_TEMPLATE_REGISTRY_HOST}/${CI_PROJECT_PATH}/*
+    # ===========================================
     # Branch must be protected
     # ===========================================
     # Checks that repository branches have proper protection settings.

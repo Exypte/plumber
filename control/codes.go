@@ -140,6 +140,10 @@ const (
 	CodeDockerInDockerUsage ErrorCode = "ISSUE-412"
 	// ISSUE-413: CI/CD job uses Docker-in-Docker with insecure daemon configuration
 	CodeDockerInDockerInsecure ErrorCode = "ISSUE-413"
+	// ISSUE-414: CI/CD component comes from an unauthorized source
+	CodeComponentUnauthorizedSource ErrorCode = "ISSUE-414"
+	// ISSUE-415: GitLab Function (run: block func:/step:) comes from an unauthorized source
+	CodeFunctionUnauthorizedSource ErrorCode = "ISSUE-415"
 	// ISSUE-802: Job reaches a dangerous trigger (workflow_run, issue_comment,
 	// pull_request_review*, discussion*, gollum, fork) AND checks out fork
 	// content. pull_request_target is owned by ISSUE-804.
@@ -538,6 +542,24 @@ var errorCodeRegistry = map[ErrorCode]ErrorCodeInfo{
 		Remediation: "If Docker-in-Docker is required, ensure TLS is enabled: do not set DOCKER_TLS_CERTDIR to an empty string, and use tcp://docker:2376 (TLS) instead of tcp://docker:2375 (plaintext). Prefer Kaniko or Buildah to avoid this pattern entirely.",
 		DocURL:      docsBaseURL + string(CodeDockerInDockerInsecure),
 		ControlName: "pipelineMustNotUseDockerInDocker",
+	},
+	CodeComponentUnauthorizedSource: {
+		Code:        CodeComponentUnauthorizedSource,
+		Severity:    SeverityHigh,
+		Title:       "Untrusted CI/CD component source",
+		Description: "A pipeline includes a GitLab CI/CD component (`include: component:`) from a source that is not listed in the authorized sources. Components run arbitrary code with the job's full context (variables, secrets, CI_JOB_TOKEN), so pulling one from an untrusted or typosquatted namespace is a direct supply-chain risk.",
+		Remediation: "Only reference components from your own project/group or an explicitly reviewed namespace. Configure trusted namespaces in .plumber.yaml under componentMustComeFromAuthorizedSources.trustedUrls.",
+		DocURL:      docsBaseURL + string(CodeComponentUnauthorizedSource),
+		ControlName: "componentMustComeFromAuthorizedSources",
+	},
+	CodeFunctionUnauthorizedSource: {
+		Code:        CodeFunctionUnauthorizedSource,
+		Severity:    SeverityHigh,
+		Title:       "Untrusted GitLab Function source",
+		Description: "A job's `run:` block invokes a GitLab Function (via `func:` or the deprecated `step:` keyword) from a source that is not listed in the authorized sources. Functions run arbitrary code with the job's full context, the same supply-chain exposure as CI/CD components.",
+		Remediation: "Only reference functions from your own project/group or an explicitly reviewed namespace. Configure trusted namespaces in .plumber.yaml under functionMustComeFromAuthorizedSources.trustedUrls.",
+		DocURL:      docsBaseURL + string(CodeFunctionUnauthorizedSource),
+		ControlName: "functionMustComeFromAuthorizedSources",
 	},
 
 	// Access and authorization controls (5xx)

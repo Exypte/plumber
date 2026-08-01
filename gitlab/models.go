@@ -233,6 +233,12 @@ type GitlabJob struct {
 	When         interface{}            `yaml:"when,omitempty"`
 	AllowFailure interface{}            `yaml:"allow_failure,omitempty"`
 	Extends      interface{}            `yaml:"extends,omitempty"`
+	// Run is the job's `run:` block (GitLab Functions / CI/CD Steps): a
+	// list of step items, each either a plain `script:` step or a
+	// function reference via `func:` (current) or `step:` (deprecated
+	// but still supported). Kept as interface{} and parsed by
+	// extractGitLabFunctionRefs since items are polymorphic.
+	Run interface{} `yaml:"run,omitempty"`
 }
 
 type Image struct {

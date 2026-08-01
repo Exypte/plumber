@@ -31,6 +31,12 @@ var validControlSchema = map[string][]string{
 	"containerImageMustComeFromAuthorizedSources": {
 		"enabled", "trustedUrls", "trustDockerHubOfficialImages", "includePlumberDefaults",
 	},
+	"componentMustComeFromAuthorizedSources": {
+		"enabled", "trustedUrls",
+	},
+	"functionMustComeFromAuthorizedSources": {
+		"enabled", "trustedUrls",
+	},
 	"branchMustBeProtected": {
 		"enabled", "namePatterns", "defaultMustBeProtected",
 		"allowForcePush", "codeOwnerApprovalRequired",
@@ -254,6 +260,12 @@ type ControlsConfig struct {
 
 	// ContainerImageMustComeFromAuthorizedSources control configuration
 	ContainerImageMustComeFromAuthorizedSources *ImageAuthorizedSourcesControlConfig `yaml:"containerImageMustComeFromAuthorizedSources,omitempty"`
+
+	// ComponentMustComeFromAuthorizedSources control configuration (GitLab-only, ISSUE-414)
+	ComponentMustComeFromAuthorizedSources *ComponentAuthorizedSourcesControlConfig `yaml:"componentMustComeFromAuthorizedSources,omitempty"`
+
+	// FunctionMustComeFromAuthorizedSources control configuration (GitLab-only, ISSUE-415)
+	FunctionMustComeFromAuthorizedSources *FunctionAuthorizedSourcesControlConfig `yaml:"functionMustComeFromAuthorizedSources,omitempty"`
 
 	// BranchMustBeProtected control configuration
 	BranchMustBeProtected *BranchProtectionControlConfig `yaml:"branchMustBeProtected,omitempty"`
@@ -599,6 +611,48 @@ type ImageAuthorizedSourcesControlConfig struct {
 	// Defaults to true. Set false to trust only the entries listed here.
 	// Ignored in legacy (no-extends) mode.
 	IncludePlumberDefaults *bool `yaml:"includePlumberDefaults,omitempty"`
+}
+
+// ComponentAuthorizedSourcesControlConfig configuration for the authorized
+// CI/CD component sources control (ISSUE-414).
+type ComponentAuthorizedSourcesControlConfig struct {
+	// Enabled controls whether this check runs
+	Enabled *bool `yaml:"enabled,omitempty"`
+
+	// TrustedUrls is a list of trusted component source URLs/patterns
+	// (supports wildcards, and $VAR/${VAR} references resolved against
+	// the scanned pipeline's variables at evaluation time).
+	TrustedUrls []string `yaml:"trustedUrls,omitempty"`
+}
+
+// IsEnabled returns whether the control is enabled
+// Returns false if not properly configured
+func (c *ComponentAuthorizedSourcesControlConfig) IsEnabled() bool {
+	if c == nil || c.Enabled == nil {
+		return false
+	}
+	return *c.Enabled
+}
+
+// FunctionAuthorizedSourcesControlConfig configuration for the authorized
+// GitLab Function sources control (ISSUE-415).
+type FunctionAuthorizedSourcesControlConfig struct {
+	// Enabled controls whether this check runs
+	Enabled *bool `yaml:"enabled,omitempty"`
+
+	// TrustedUrls is a list of trusted function source URLs/patterns
+	// (supports wildcards, and $VAR/${VAR} references resolved against
+	// the scanned pipeline's variables at evaluation time).
+	TrustedUrls []string `yaml:"trustedUrls,omitempty"`
+}
+
+// IsEnabled returns whether the control is enabled
+// Returns false if not properly configured
+func (c *FunctionAuthorizedSourcesControlConfig) IsEnabled() bool {
+	if c == nil || c.Enabled == nil {
+		return false
+	}
+	return *c.Enabled
 }
 
 // BranchProtectionControlConfig configuration for the branch protection control
@@ -1093,6 +1147,24 @@ func (c *PlumberConfig) GetContainerImageMustComeFromAuthorizedSourcesConfig() *
 		return nil
 	}
 	return c.ControlsFor("gitlab").ContainerImageMustComeFromAuthorizedSources
+}
+
+// GetComponentMustComeFromAuthorizedSourcesConfig returns the control configuration
+// Returns nil if not configured
+func (c *PlumberConfig) GetComponentMustComeFromAuthorizedSourcesConfig() *ComponentAuthorizedSourcesControlConfig {
+	if c == nil {
+		return nil
+	}
+	return c.ControlsFor("gitlab").ComponentMustComeFromAuthorizedSources
+}
+
+// GetFunctionMustComeFromAuthorizedSourcesConfig returns the control configuration
+// Returns nil if not configured
+func (c *PlumberConfig) GetFunctionMustComeFromAuthorizedSourcesConfig() *FunctionAuthorizedSourcesControlConfig {
+	if c == nil {
+		return nil
+	}
+	return c.ControlsFor("gitlab").FunctionMustComeFromAuthorizedSources
 }
 
 // IsEnabled returns whether the control is enabled

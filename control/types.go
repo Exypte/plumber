@@ -45,6 +45,9 @@ type AnalysisResult struct {
 	// Pipeline image data
 	PipelineImageMetrics *PipelineImageMetricsSummary `json:"pipelineImageMetrics,omitempty"`
 
+	// Pipeline GitLab Function data (run: block func:/step: references)
+	PipelineFunctionMetrics *PipelineFunctionMetricsSummary `json:"pipelineFunctionMetrics,omitempty"`
+
 	// Findings from the Rego/OPA rule engine. Single source of truth
 	// for compliance results since all legacy Go controls were retired.
 	Findings []opaengine.Finding `json:"findings,omitempty"`
@@ -196,5 +199,11 @@ type PipelineOriginMetricsSummary struct {
 
 // PipelineImageMetricsSummary is a simplified version of image metrics for output
 type PipelineImageMetricsSummary struct {
+	Total uint `json:"total"`
+}
+
+// PipelineFunctionMetricsSummary is a simplified version of GitLab Function
+// (run: block func:/step: reference) metrics for output.
+type PipelineFunctionMetricsSummary struct {
 	Total uint `json:"total"`
 }

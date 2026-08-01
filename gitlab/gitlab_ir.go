@@ -30,6 +30,7 @@ func ToNormalizedPipeline(
 	projectPath string,
 	defaultBranch string,
 	ciConfigPath string,
+	instanceURL string,
 	origin *GitlabPipelineOriginData,
 	images *GitlabPipelineImageData,
 	protection *GitlabProtectionAnalysisData,
@@ -41,17 +42,14 @@ func ToNormalizedPipeline(
 	}
 
 	imagesByJob := indexImagesByJob(images)
+	functionsByJob := indexFunctionsByJob(images)
 	// Includes are built first so jobs sourced from an upstream
 	// component / template can inherit their include's source pointer
 	// when the job itself has no line in the user's .gitlab-ci.yml.
 	pipeline.Includes = buildIncludes(origin, ciConfigPath)
-	pipeline.Jobs = buildJobs(origin, imagesByJob, ciConfigPath, pipeline.Includes)
+	pipeline.Jobs = buildJobs(origin, imagesByJob, functionsByJob, ciConfigPath, pipeline.Includes)
 	pipeline.Branches = buildBranches(protection)
-	if origin != nil && origin.MergedConf != nil {
-		if globals := extractGitLabVariables(origin.MergedConf.GlobalVariables); len(globals) > 0 {
-			pipeline.GlobalVariables = globals
-		}
-	}
+	pipeline.GlobalVariables = buildGlobalVariables(projectPath, instanceURL, origin, images)
 	if origin != nil && origin.Conf != nil {
 		if globals := extractGitLabVariables(origin.Conf.GlobalVariables); len(globals) > 0 {
 			pipeline.LocalGlobalVariables = globals
@@ -59,6 +57,84 @@ func ToNormalizedPipeline(
 	}
 
 	return pipeline
+}
+
+// buildGlobalVariables merges every source of GitLab variable the
+// collector knows about into a single map, low-to-high precedence
+// (mirrors ReplaceVariable's project > group > instance > global >
+// predefined resolution order): predefined statically-derivable
+// variables, the pipeline's own merged `variables:` block, then the
+// API-sourced instance / group / project CI/CD variables. Consumed by
+// Rego rules (componentAuthorizedSources, functionAuthorizedSources)
+// to resolve `$VAR`/`${VAR}` references found inside a ref before
+// comparing it against a trustedUrls pattern.
+func buildGlobalVariables(projectPath, instanceURL string, origin *GitlabPipelineOriginData, images *GitlabPipelineImageData) map[string]string {
+	out := map[string]string{}
+	for k, v := range predefinedGitLabVariables(projectPath, instanceURL) {
+		out[k] = v
+	}
+	if origin != nil && origin.MergedConf != nil {
+		for k, v := range extractGitLabVariables(origin.MergedConf.GlobalVariables) {
+			out[k] = v
+		}
+	}
+	if images != nil {
+		for k, v := range images.InstanceVars {
+			out[k] = v
+		}
+		for k, v := range images.GroupVars {
+			out[k] = v
+		}
+		for k, v := range images.ProjectVars {
+			out[k] = v
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// predefinedGitLabVariables derives the subset of GitLab predefined CI/CD
+// variables that can be computed statically from the scanned project's
+// path and the GitLab instance URL, without running a pipeline. Mirrors
+// the split logic in resolvePredefinedProjectVars (project path) and the
+// scheme-stripping in ParseGitlabComponentPath's gitlabServerName (instance
+// host), and the CI_TEMPLATE_REGISTRY_HOST constant already used to
+// resolve image refs in dataCollectionGitlabPipelineImage.go — kept in
+// sync here rather than resolved server-side, since GitLab always serves
+// the security-products/step catalog off registry.gitlab.com regardless
+// of the scanned instance.
+func predefinedGitLabVariables(projectPath, instanceURL string) map[string]string {
+	out := map[string]string{
+		"CI_TEMPLATE_REGISTRY_HOST": "registry.gitlab.com",
+	}
+	if projectPath != "" {
+		namespace, name := projectPath, projectPath
+		if i := strings.LastIndex(projectPath, "/"); i >= 0 {
+			namespace = projectPath[:i]
+			name = projectPath[i+1:]
+		}
+		rootNamespace, _, _ := strings.Cut(projectPath, "/")
+		out["CI_PROJECT_PATH"] = projectPath
+		out["CI_PROJECT_NAMESPACE"] = namespace
+		out["CI_PROJECT_NAME"] = name
+		out["CI_PROJECT_ROOT_NAMESPACE"] = rootNamespace
+	}
+	if instanceURL != "" {
+		host := strings.TrimPrefix(instanceURL, "https://")
+		scheme := "https"
+		if strings.HasPrefix(instanceURL, "http://") {
+			scheme = "http"
+			host = strings.TrimPrefix(instanceURL, "http://")
+		}
+		host = strings.TrimSuffix(host, "/")
+		out["CI_SERVER_FQDN"] = host
+		out["CI_SERVER_HOST"] = host
+		out["CI_SERVER_URL"] = instanceURL
+		out["CI_SERVER_PROTOCOL"] = scheme
+	}
+	return out
 }
 
 // buildBranches flattens the GitLab protection API response into
@@ -380,6 +456,20 @@ func indexImagesByJob(images *GitlabPipelineImageData) map[string]ir.Image {
 	return out
 }
 
+// indexFunctionsByJob groups the collector's flat GitLab Function list
+// (run: block func:/step: references) by job name, mirroring
+// indexImagesByJob.
+func indexFunctionsByJob(images *GitlabPipelineImageData) map[string][]ir.FunctionRef {
+	if images == nil || len(images.Functions) == 0 {
+		return nil
+	}
+	out := map[string][]ir.FunctionRef{}
+	for _, info := range images.Functions {
+		out[info.Job] = append(out[info.Job], ir.FunctionRef{Uses: info.Link})
+	}
+	return out
+}
+
 func imageFromInfo(info GitlabPipelineImageInfo) ir.Image {
 	// info.Link may be "registry/name:tag" or "registry/name@sha256:..."
 	// info.Tag / info.Registry are already split by the collector.
@@ -394,7 +484,7 @@ func imageFromInfo(info GitlabPipelineImageInfo) ir.Image {
 	return img
 }
 
-func buildJobs(origin *GitlabPipelineOriginData, imagesByJob map[string]ir.Image, ciConfigPath string, includes []ir.Include) []ir.Job {
+func buildJobs(origin *GitlabPipelineOriginData, imagesByJob map[string]ir.Image, functionsByJob map[string][]ir.FunctionRef, ciConfigPath string, includes []ir.Include) []ir.Job {
 	if origin == nil || len(origin.JobMap) == 0 {
 		return nil
 	}
@@ -416,6 +506,9 @@ func buildJobs(origin *GitlabPipelineOriginData, imagesByJob map[string]ir.Image
 		job := ir.Job{Name: name}
 		if img, ok := imagesByJob[name]; ok {
 			job.Image = &img
+		}
+		if fns, ok := functionsByJob[name]; ok {
+			job.Functions = fns
 		}
 		switch {
 		case origin.JobHardcodedMap != nil && origin.JobHardcodedMap[name]:

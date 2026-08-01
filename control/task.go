@@ -124,6 +124,7 @@ func runRegoEngine(
 		conf.ProjectPath,
 		project.DefaultBranch,
 		project.CiConfPath,
+		conf.GitlabURL,
 		originData,
 		imageData,
 		protectionData,
@@ -299,6 +300,18 @@ func buildEngineConfig(controls *configuration.ControlsConfig) map[string]any {
 		cfg["imageAuthorizedSources"] = map[string]any{
 			"trustedUrls":            c.TrustedUrls,
 			"trustDockerHubOfficial": trustOfficial,
+		}
+	}
+
+	if c := controls.ComponentMustComeFromAuthorizedSources; c != nil {
+		cfg["componentAuthorizedSources"] = map[string]any{
+			"trustedUrls": c.TrustedUrls,
+		}
+	}
+
+	if c := controls.FunctionMustComeFromAuthorizedSources; c != nil {
+		cfg["functionAuthorizedSources"] = map[string]any{
+			"trustedUrls": c.TrustedUrls,
 		}
 	}
 
@@ -615,6 +628,9 @@ func RunAnalysis(conf *configuration.Configuration) (*AnalysisResult, error) {
 	if pipelineImageMetrics != nil {
 		result.PipelineImageMetrics = &PipelineImageMetricsSummary{
 			Total: pipelineImageMetrics.Total,
+		}
+		result.PipelineFunctionMetrics = &PipelineFunctionMetricsSummary{
+			Total: pipelineImageMetrics.FunctionTotal,
 		}
 	}
 
