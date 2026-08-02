@@ -201,8 +201,14 @@ func (e *Engine) Evaluate(ctx context.Context, pipeline *ir.NormalizedPipeline, 
 	for name := range e.modules {
 		names = append(names, name)
 	}
+
 	sort.Strings(names)
 
+	marshal, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(string(marshal))
 	var findings []Finding
 	for _, name := range names {
 		source := e.modules[name]

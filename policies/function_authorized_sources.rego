@@ -22,7 +22,6 @@ deny contains finding if {
 	job := input.pipeline.jobs[i]
 	fn := job.functions[j]
 	fn.uses != ""
-	not _is_local(fn.uses)
 	not _is_authorized(fn.uses)
 	finding := {
 		"code":     "ISSUE-415",
@@ -33,10 +32,6 @@ deny contains finding if {
 		"status":   "unauthorized",
 	}
 }
-
-_is_local(uses) if startswith(uses, "./")
-
-_is_local(uses) if startswith(uses, "/")
 
 _is_authorized(uses) if {
 	pattern := input.config.functionAuthorizedSources.trustedUrls[_]
