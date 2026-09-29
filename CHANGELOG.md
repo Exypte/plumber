@@ -1,3 +1,25 @@
+## [0.5.13](https://github.com/getplumber/plumber/compare/v0.5.12...v0.5.13) (2026-09-29)
+
+
+### ✨ Features
+
+* **ir,github:** carry if conditions for jobs, actions and run scripts ([4195575](https://github.com/getplumber/plumber/commit/419557508ca2f205831f9ef9ee457f9389f4b470)), closes [#497](https://github.com/getplumber/plumber/issues/497)
+
+
+### 🐛 Bug Fixes
+
+* **policies:** resolve the cache-poisoning release path per trigger ([37dd0f8](https://github.com/getplumber/plumber/commit/37dd0f84cb30e64e9fd6fafb90853b6c13fe78d3)), closes [#497](https://github.com/getplumber/plumber/issues/497)
+
+
+### 📚 Documentation
+
+* **cache-poisoning:** describe the per-trigger resolution and ISSUE-717 everywhere the control is documented ([c626275](https://github.com/getplumber/plumber/commit/c626275434ca5a6d802e517e5995dac6f041e339)), closes [#497](https://github.com/getplumber/plumber/issues/497)
+
+
+### 👷 CI/CD
+
+* **release:** pin v0.5.12 refs [skip ci] ([6c3956c](https://github.com/getplumber/plumber/commit/6c3956c24fcb1d89660938466249b9b36e427e18))
+
 ## [0.5.12](https://github.com/getplumber/plumber/compare/v0.5.11...v0.5.12) (2026-09-28)
 
 
