@@ -1,3 +1,16 @@
+## [0.5.14](https://github.com/getplumber/plumber/compare/v0.5.13...v0.5.14) (2026-09-29)
+
+
+### 🐛 Bug Fixes
+
+* **gitlab:** debug log keeps the GraphQL request side only ([56c0924](https://github.com/getplumber/plumber/commit/56c092473ba84d9e83c45c1bde925545ddd94002))
+* **gitlab:** resolve image references only from variables the job can see ([e34aa5f](https://github.com/getplumber/plumber/commit/e34aa5fd4ce8225245a09948901c509e196cf2c0))
+
+
+### 👷 CI/CD
+
+* **release:** pin v0.5.13 refs [skip ci] ([6932291](https://github.com/getplumber/plumber/commit/69322917682f64d12c1a9a0de53a28becb8d9805))
+
 ## [0.5.13](https://github.com/getplumber/plumber/compare/v0.5.12...v0.5.13) (2026-09-29)
 
 
