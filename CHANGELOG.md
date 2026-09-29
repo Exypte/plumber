@@ -1,3 +1,16 @@
+## [0.5.15](https://github.com/getplumber/plumber/compare/v0.5.14...v0.5.15) (2026-09-29)
+
+
+### 🐛 Bug Fixes
+
+* **cmd:** banner reads "CI/CD Security Scanner for GitHub & GitLab" ([806e12a](https://github.com/getplumber/plumber/commit/806e12af24726b19d4e694254bb2665a8e600697))
+* **cmd:** banner reads just "CI/CD Security Scanner" ([ad8cd33](https://github.com/getplumber/plumber/commit/ad8cd337b435650f1d5433db5550b0d48085f2af))
+
+
+### 👷 CI/CD
+
+* **release:** pin v0.5.14 refs [skip ci] ([8b4214b](https://github.com/getplumber/plumber/commit/8b4214b3af36d5aeceb2e3cf4d01af62d1751a36))
+
 ## [0.5.14](https://github.com/getplumber/plumber/compare/v0.5.13...v0.5.14) (2026-09-29)
 
 
