@@ -1,3 +1,23 @@
+## [0.5.16](https://github.com/getplumber/plumber/compare/v0.5.15...v0.5.16) (2026-09-30)
+
+
+### 🐛 Bug Fixes
+
+* **docker:** build the image binary for the target platform ([8363ff5](https://github.com/getplumber/plumber/commit/8363ff5989e1962bb796b45b517b21f0135a0948))
+
+
+### 📚 Documentation
+
+* **contributing:** describe the release order and its operation ([0e07fa2](https://github.com/getplumber/plumber/commit/0e07fa2af83a34a0cf001c0fd23809987450119e))
+* **readme:** focused CLI README with a real run GIF and a new banner ([4a1e7a3](https://github.com/getplumber/plumber/commit/4a1e7a38bd8b3ac576cbddb402d92548fcf3e465)), closes [getplumber/getplumber.io#438](https://github.com/getplumber/getplumber.io/issues/438)
+
+
+### 👷 CI/CD
+
+* **release:** add the scripts that pin the image digest at the tag ([9fca2fe](https://github.com/getplumber/plumber/commit/9fca2fecf83b2cdefa1720a2282e50634e7028ff))
+* **release:** build the image before the tag, pin its digest in it ([858a132](https://github.com/getplumber/plumber/commit/858a13270b51c8d7fbef5b28c730922bd345b180))
+* **release:** pin v0.5.15 refs [skip ci] ([20d607d](https://github.com/getplumber/plumber/commit/20d607de884abfa47020e939a5b5bfe055807d4e))
+
 ## [0.5.15](https://github.com/getplumber/plumber/compare/v0.5.14...v0.5.15) (2026-09-29)
 
 
