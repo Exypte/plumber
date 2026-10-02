@@ -1,3 +1,15 @@
+## [0.5.17](https://github.com/getplumber/plumber/compare/v0.5.16...v0.5.17) (2026-10-02)
+
+
+### ✨ Features
+
+* **analyze:** accept the repository to scan as a positional target ([14f3908](https://github.com/getplumber/plumber/commit/14f39087e95df04d267cb64c8649562134528925))
+
+
+### 📚 Documentation
+
+* show the positional target in the remote-scan examples ([c991a47](https://github.com/getplumber/plumber/commit/c991a470b23ba197fa143b9ba44ac6eab7d124bd))
+
 ## [0.5.16](https://github.com/getplumber/plumber/compare/v0.5.15...v0.5.16) (2026-09-30)
 
 
