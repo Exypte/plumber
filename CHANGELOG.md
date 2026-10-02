@@ -1,3 +1,19 @@
+## [0.5.18](https://github.com/getplumber/plumber/compare/v0.5.17...v0.5.18) (2026-10-02)
+
+
+### ✨ Features
+
+* **github:** collect the repository visibility into the pipeline ([0f8e228](https://github.com/getplumber/plumber/commit/0f8e228503eec47466a6d5fb4b3da6f578a04dfb))
+* **github:** jobs carry runs-on, needs, caches and artifacts ([7d98eff](https://github.com/getplumber/plumber/commit/7d98efff485cbd1e464a03844c1cfaa870da714a))
+* **gitlab:** copy the project visibility onto the pipeline ([6f3c660](https://github.com/getplumber/plumber/commit/6f3c6609a666497673fba3b47f42b896f4bfba44))
+* **gitlab:** jobs carry needs, caches, artifacts and environment ([b40dcc5](https://github.com/getplumber/plumber/commit/b40dcc5441e3a3e40b4bc671570244415ba51b92))
+* **ir:** visibility, runs-on, needs, caches and artifacts on the pipeline model ([9bd2d5a](https://github.com/getplumber/plumber/commit/9bd2d5a8b4650972614915ca50eb94ef3e777fff))
+
+
+### 📚 Documentation
+
+* **readme:** use the official Resty logo in the adopters row ([40125a7](https://github.com/getplumber/plumber/commit/40125a7e23f7f9c3f29d595e51dba32a5a4af214))
+
 ## [0.5.17](https://github.com/getplumber/plumber/compare/v0.5.16...v0.5.17) (2026-10-02)
 
 
