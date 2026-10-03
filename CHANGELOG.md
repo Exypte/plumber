@@ -1,3 +1,12 @@
+## [0.5.19](https://github.com/getplumber/plumber/compare/v0.5.18...v0.5.19) (2026-10-03)
+
+
+### ✨ Features
+
+* **control:** evaluate the situation facts and attach them to the analysis ([399b67d](https://github.com/getplumber/plumber/commit/399b67de7e1e9eae4ca4c67669f20153c2a461d1))
+* **gitlab:** jobs carry only and except ([ce1bdf5](https://github.com/getplumber/plumber/commit/ce1bdf50a5c78e9b51e1791604ea01349faaeca4))
+* **situation:** per-job situation facts and their engine entry point ([3f286fa](https://github.com/getplumber/plumber/commit/3f286fa64d6953d3a05d73fa2b5c4ec6a10ec297))
+
 ## [0.5.18](https://github.com/getplumber/plumber/compare/v0.5.17...v0.5.18) (2026-10-02)
 
 
