@@ -1,3 +1,10 @@
+## [0.5.20](https://github.com/getplumber/plumber/compare/v0.5.19...v0.5.20) (2026-10-03)
+
+
+### ✨ Features
+
+* **control:** a role per issue code and one severity source ([d1a6b4a](https://github.com/getplumber/plumber/commit/d1a6b4a329449ed16dca1a8a8c22902a33edf771))
+
 ## [0.5.19](https://github.com/getplumber/plumber/compare/v0.5.18...v0.5.19) (2026-10-03)
 
 
